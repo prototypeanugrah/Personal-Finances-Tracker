@@ -51,4 +51,29 @@ export default defineSchema({
     maxAmount: v.optional(v.number()),
     isSystem: v.boolean(),
   }).index("by_priority", ["priority"]),
+
+  monthlySummary: defineTable({
+    monthKey: v.string(),           // "2026-01" format
+    year: v.number(),               // 2026
+    month: v.number(),              // 1 (January)
+
+    // Totals
+    totalIncome: v.number(),
+    totalExpenses: v.number(),
+    netFlow: v.number(),
+    transactionCount: v.number(),
+
+    // Balance tracking
+    openingBalance: v.number(),
+    closingBalance: v.number(),
+
+    // Category breakdown stored as JSON string (dynamic object)
+    categoryBreakdown: v.string(),  // JSON: { "food": { amount: 1234, count: 5 }, ... }
+
+    // Metadata
+    statementIds: v.array(v.id("statements")),
+    lastUpdated: v.number(),
+  })
+    .index("by_month", ["monthKey"])
+    .index("by_year", ["year"]),
 });

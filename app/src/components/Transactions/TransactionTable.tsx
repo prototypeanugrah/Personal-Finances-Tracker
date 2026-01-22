@@ -28,7 +28,7 @@ type SortOrder = "asc" | "desc";
 
 export function TransactionTable({
   transactions,
-  onCategoryChange,
+  onCategoryChange: _onCategoryChange,
 }: TransactionTableProps) {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
