@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 import { Dashboard } from "./components/Dashboard/Dashboard";
 import { FileDropZone } from "./components/FileManager/FileDropZone";
 import { StatementList } from "./components/FileManager/StatementList";
 import { TransactionTable } from "./components/Transactions/TransactionTable";
-import { useLocalStorage } from "./hooks/useLocalStorage";
 import type { ParsedStatement } from "./lib/parser/xlsParser";
 import type { CategorizedTransaction } from "./lib/categorizer/categoryEngine";
 import "./styles/globals.css";
@@ -11,109 +12,126 @@ import "./App.css";
 
 type View = "dashboard" | "transactions" | "import";
 
-interface StoredStatement {
-  _id: string;
-  filename: string;
-  importedAt: number;
-  accountNumber: string;
-  accountHolder: string;
-  dateFrom: number;
-  dateTo: number;
-  transactionCount: number;
-  fileHash: string;
-}
-
-interface StoredTransaction extends CategorizedTransaction {
-  _id: string;
-  statementId: string;
-}
-
 function App() {
   const [view, setView] = useState<View>("import");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Use localStorage for persistent storage
-  const [statements, setStatements] = useLocalStorage<StoredStatement[]>(
-    "expense-tracker-statements",
-    []
-  );
-  const [transactions, setTransactions] = useLocalStorage<StoredTransaction[]>(
-    "expense-tracker-transactions",
-    []
-  );
+  // Convex queries
+  const statements = useQuery(api.statements.list) ?? [];
+  const transactions = useQuery(api.transactions.list, {}) ?? [];
+  const monthlySummaries = useQuery(api.monthlySummary.listMonths) ?? [];
+
+  // Convex mutations
+  const importStatement = useMutation(api.statements.importStatement);
+  const removeStatement = useMutation(api.statements.remove);
+  const updateCategory = useMutation(api.transactions.updateCategory);
 
   // Auto-navigate to dashboard if we have data
   useEffect(() => {
     if (transactions.length > 0 && view === "import") {
       setView("dashboard");
     }
-  }, []);
+  }, [transactions.length]);
+
+  // Auto-select the most recent month when summaries load
+  useEffect(() => {
+    if (monthlySummaries.length > 0 && !selectedMonth) {
+      setSelectedMonth(monthlySummaries[0].monthKey);
+    }
+  }, [monthlySummaries, selectedMonth]);
 
   const handleStatementParsed = useCallback(
-    (statement: ParsedStatement, categorizedTransactions: CategorizedTransaction[]) => {
-      // Generate IDs for storage
-      const statementId = `stmt_${Date.now()}`;
+    async (statement: ParsedStatement, categorizedTransactions: CategorizedTransaction[]) => {
+      setIsLoading(true);
 
-      // Create filename from date range
-      const dateFrom = statement.dateFrom;
-      const monthName = dateFrom.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      try {
+        // Create filename from date range
+        const dateFrom = statement.dateFrom;
+        const monthName = dateFrom.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-      const newStatement: StoredStatement = {
-        _id: statementId,
-        filename: `${monthName} Statement`,
-        importedAt: Date.now(),
-        accountNumber: statement.accountNumber,
-        accountHolder: statement.accountHolder,
-        dateFrom: statement.dateFrom.getTime(),
-        dateTo: statement.dateTo.getTime(),
-        transactionCount: categorizedTransactions.length,
-        fileHash: statement.fileHash,
-      };
+        // Prepare statement data
+        const statementData = {
+          filename: `${monthName} Statement`,
+          accountNumber: statement.accountNumber,
+          accountHolder: statement.accountHolder,
+          dateFrom: statement.dateFrom.getTime(),
+          dateTo: statement.dateTo.getTime(),
+          transactionCount: categorizedTransactions.length,
+          fileHash: statement.fileHash,
+        };
 
-      // Check for duplicates
-      const isDuplicate = statements.some(
-        (s) => s.fileHash === statement.fileHash
-      );
+        // Prepare transaction data
+        const transactionData = categorizedTransactions.map((tx) => ({
+          serialNo: tx.serialNo,
+          valueDate: tx.valueDate,
+          transactionDate: tx.transactionDate,
+          chequeNumber: tx.chequeNumber || undefined,
+          remarks: tx.remarks,
+          withdrawalAmount: tx.withdrawalAmount,
+          depositAmount: tx.depositAmount,
+          balance: tx.balance,
+          categoryId: tx.categoryId,
+          merchantName: tx.merchantName || undefined,
+          paymentMethod: tx.paymentMethod,
+        }));
 
-      if (isDuplicate) {
-        alert("This statement has already been imported.");
-        return;
+        // Import using the combined mutation
+        const result = await importStatement({
+          statement: statementData,
+          transactions: transactionData,
+        });
+
+        if (result.alreadyExists) {
+          alert("This statement has already been imported.");
+          return;
+        }
+
+        // Set selected month to the newly imported month
+        const year = dateFrom.getFullYear();
+        const month = String(dateFrom.getMonth() + 1).padStart(2, "0");
+        setSelectedMonth(`${year}-${month}`);
+
+        setView("dashboard");
+      } catch (error) {
+        console.error("Failed to import statement:", error);
+        alert("Failed to import statement. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-
-      const newTransactions: StoredTransaction[] = categorizedTransactions.map(
-        (tx, index) => ({
-          ...tx,
-          _id: `tx_${Date.now()}_${index}`,
-          statementId,
-        })
-      );
-
-      setStatements((prev) => [newStatement, ...prev]);
-      setTransactions((prev) => [...prev, ...newTransactions]);
-
-      // Set selected month to the newly imported month
-      const year = dateFrom.getFullYear();
-      const month = String(dateFrom.getMonth() + 1).padStart(2, "0");
-      setSelectedMonth(`${year}-${month}`);
-
-      setView("dashboard");
     },
-    [statements, setStatements, setTransactions]
+    [importStatement]
   );
 
-  const handleDeleteStatement = useCallback((id: string) => {
-    setStatements((prev) => prev.filter((s) => s._id !== id));
-    setTransactions((prev) => prev.filter((tx) => tx.statementId !== id));
-  }, [setStatements, setTransactions]);
+  const handleDeleteStatement = useCallback(async (id: string) => {
+    try {
+      await removeStatement({ id: id as any });
+    } catch (error) {
+      console.error("Failed to delete statement:", error);
+      alert("Failed to delete statement. Please try again.");
+    }
+  }, [removeStatement]);
 
-  const handleCategoryChange = useCallback((id: string, categoryId: string) => {
-    setTransactions((prev) =>
-      prev.map((tx) =>
-        tx._id === id ? { ...tx, userCategoryOverride: categoryId } : tx
-      )
-    );
-  }, [setTransactions]);
+  const handleCategoryChange = useCallback(async (id: string, categoryId: string) => {
+    try {
+      await updateCategory({ id: id as any, categoryId });
+    } catch (error) {
+      console.error("Failed to update category:", error);
+    }
+  }, [updateCategory]);
+
+  // Transform transactions to include _id as string for components
+  const transformedTransactions = transactions.map((tx) => ({
+    ...tx,
+    _id: tx._id.toString(),
+    statementId: tx.statementId.toString(),
+  }));
+
+  // Transform statements for StatementList
+  const transformedStatements = statements.map((s) => ({
+    ...s,
+    _id: s._id.toString(),
+  }));
 
   return (
     <div className="app">
@@ -200,10 +218,10 @@ function App() {
       <main className="app-main">
         {view === "dashboard" && (
           <Dashboard
-            transactions={transactions}
+            transactions={transformedTransactions}
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
-            onCategoryClick={(categoryId) => {
+            onCategoryClick={() => {
               setView("transactions");
             }}
           />
@@ -213,7 +231,7 @@ function App() {
           <div className="transactions-view">
             <h1>Transactions</h1>
             <TransactionTable
-              transactions={transactions}
+              transactions={transformedTransactions}
               onCategoryChange={handleCategoryChange}
             />
           </div>
@@ -234,7 +252,7 @@ function App() {
             />
 
             <StatementList
-              statements={statements}
+              statements={transformedStatements}
               onDelete={handleDeleteStatement}
             />
           </div>

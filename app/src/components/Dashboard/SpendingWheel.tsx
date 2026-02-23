@@ -123,11 +123,11 @@ export function SpendingWheel({
       .attr("stroke-width", 2)
       .style("cursor", "pointer")
       .style("transition", "all 0.3s ease")
-      .on("mouseenter", function (event, d) {
+      .on("mouseenter", function (_event, d) {
         d3.select(this)
           .transition()
           .duration(200)
-          .attr("d", hoverArc)
+          .attr("d", (datum) => hoverArc(datum as d3.PieArcDatum<CategoryData>) || "")
           .attr("filter", "url(#glow)");
         setHoveredCategory(d.data.categoryId);
       })
@@ -135,7 +135,7 @@ export function SpendingWheel({
         d3.select(this)
           .transition()
           .duration(200)
-          .attr("d", arc)
+          .attr("d", (datum) => arc(datum as d3.PieArcDatum<CategoryData>) || "")
           .attr("filter", null);
         setHoveredCategory(null);
       });
