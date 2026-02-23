@@ -12,28 +12,52 @@ interface FileDropZoneProps {
     statement: ParsedStatement,
     transactions: CategorizedTransaction[]
   ) => void;
+  historicalTransactions?: {
+    remarks: string;
+    merchantName?: string;
+    categoryId: string;
+    userCategoryOverride?: string;
+    withdrawalAmount: number;
+    depositAmount: number;
+  }[];
   isLoading?: boolean;
 }
 
-export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps) {
+export function FileDropZone({
+  onStatementParsed,
+  historicalTransactions = [],
+  isLoading,
+}: FileDropZoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [statementType, setStatementType] = useState<"debit" | "credit">("debit");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
     async (file: File) => {
       setError(null);
+
+      const isPdf = file.name.toLowerCase().endsWith(".pdf");
+      if (statementType === "credit" && !isPdf) {
+        setError(
+          "Credit mode currently supports PDF statements only. Switch to Debit for XLS/XLSX/CSV."
+        );
+        return;
+      }
+
       setProcessing(true);
 
       try {
         // Parse the statement
-        const statement = await parseICICIStatement(file);
+        const statement = await parseICICIStatement(file, statementType);
 
         // Process and categorize transactions
         const categorizedTransactions = processTransactions(
           statement.transactions,
-          defaultRules
+          defaultRules,
+          statement.statementType,
+          { historicalTransactions }
         );
 
         onStatementParsed(statement, categorizedTransactions);
@@ -48,7 +72,7 @@ export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps
         setProcessing(false);
       }
     },
-    [onStatementParsed]
+    [historicalTransactions, onStatementParsed, statementType]
   );
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -88,6 +112,8 @@ export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps
       if (files && files.length > 0) {
         handleFile(files[0]);
       }
+      // Allow selecting the same file again after an error.
+      e.target.value = "";
     },
     [handleFile]
   );
@@ -100,6 +126,25 @@ export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps
 
   return (
     <div className="file-drop-container">
+      <div className="statement-type-actions" aria-label="Statement Type Actions">
+        <button
+          type="button"
+          className={`statement-action-btn ${statementType === "debit" ? "active" : ""}`}
+          onClick={() => setStatementType("debit")}
+          disabled={isDisabled}
+        >
+          Debit Statement
+        </button>
+        <button
+          type="button"
+          className={`statement-action-btn ${statementType === "credit" ? "active" : ""}`}
+          onClick={() => setStatementType("credit")}
+          disabled={isDisabled}
+        >
+          Credit Statement
+        </button>
+      </div>
+
       <motion.div
         className={`drop-zone ${isDragActive ? "active" : ""} ${isDisabled ? "disabled" : ""}`}
         onDragEnter={handleDragEnter}
@@ -113,7 +158,7 @@ export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xls,.xlsx,.csv"
+          accept={statementType === "credit" ? ".pdf" : ".pdf,.xls,.xlsx,.csv"}
           onChange={handleFileSelect}
           style={{ display: "none" }}
           disabled={isDisabled}
@@ -180,9 +225,19 @@ export function FileDropZone({ onStatementParsed, isLoading }: FileDropZoneProps
                   <line x1="9" y1="15" x2="15" y2="15" />
                 </svg>
               </div>
-              <h3>Import Bank Statement</h3>
-              <p>Drag & drop your XLS file here, or click to browse</p>
-              <span className="file-types">Supports ICICI Bank statements (.xls, .xlsx)</span>
+              <h3>
+                Import {statementType === "credit" ? "Credit Card" : "Debit Card"} Statement
+              </h3>
+              <p>
+                Drag & drop your{" "}
+                {statementType === "credit" ? "PDF" : "PDF/XLS/XLSX/CSV"} file here, or click
+                to browse
+              </p>
+              <span className="file-types">
+                {statementType === "credit"
+                  ? "Supports ICICI credit statements (.pdf)"
+                  : "Supports ICICI debit statements (.pdf, .xls, .xlsx, .csv)"}
+              </span>
             </motion.div>
           )}
         </AnimatePresence>

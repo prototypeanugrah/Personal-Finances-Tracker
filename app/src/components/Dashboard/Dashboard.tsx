@@ -1,6 +1,4 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { SpendingWheel } from "./SpendingWheel";
 import { TransactionStream } from "./TransactionStream";
@@ -14,6 +12,8 @@ interface Transaction {
   withdrawalAmount: number;
   depositAmount: number;
   categoryId: string;
+  statementType?: "debit" | "credit";
+  rewardPoints?: number;
   userCategoryOverride?: string;
 }
 
@@ -30,34 +30,13 @@ export function Dashboard({
   selectedMonth: externalSelectedMonth,
   onMonthChange: externalOnMonthChange,
 }: DashboardProps) {
-  // Internal state for month selection if not controlled externally
   const [internalSelectedMonth, setInternalSelectedMonth] = useState<string | null>(null);
 
   const selectedMonth = externalSelectedMonth !== undefined ? externalSelectedMonth : internalSelectedMonth;
   const onMonthChange = externalOnMonthChange || setInternalSelectedMonth;
 
-  // Query monthly summaries from Convex
-  const monthlySummaries = useQuery(api.monthlySummary.list) ?? [];
-
-  // Query specific month's summary
-  const currentMonthlySummary = useQuery(
-    api.monthlySummary.get,
-    selectedMonth ? { monthKey: selectedMonth } : "skip"
-  );
-
-  // Convert available months from Convex summaries
+  // Derive available months from live transactions
   const availableMonths = useMemo(() => {
-    return monthlySummaries.map((summary) => ({
-      value: summary.monthKey,
-      label: formatMonthLabel(summary.monthKey),
-      transactionCount: summary.transactionCount,
-    }));
-  }, [monthlySummaries]);
-
-  // Fallback: Calculate available months from transactions if no summaries
-  const fallbackAvailableMonths = useMemo(() => {
-    if (availableMonths.length > 0) return availableMonths;
-
     const monthMap = new Map<string, number>();
     transactions.forEach((tx) => {
       const monthKey = getMonthKey(tx.transactionDate);
@@ -69,49 +48,23 @@ export function Dashboard({
       label: formatMonthLabel(value),
       transactionCount: count,
     }));
-  }, [transactions, availableMonths]);
+  }, [transactions]);
 
-  const monthsToUse = fallbackAvailableMonths.length > 0 ? fallbackAvailableMonths : availableMonths;
-
-  // Auto-select the most recent month if none selected and we have data
-  useMemo(() => {
-    if (selectedMonth === null && monthsToUse.length > 0 && !externalSelectedMonth) {
-      const sortedMonths = [...monthsToUse].sort((a, b) =>
+  useEffect(() => {
+    if (selectedMonth === null && availableMonths.length > 0) {
+      const sortedMonths = [...availableMonths].sort((a, b) =>
         b.value.localeCompare(a.value)
       );
-      setInternalSelectedMonth(sortedMonths[0].value);
+      onMonthChange(sortedMonths[0].value);
     }
-  }, [monthsToUse, selectedMonth, externalSelectedMonth]);
+  }, [availableMonths, selectedMonth, onMonthChange]);
 
-  // Filter transactions by selected month (needed for daily chart)
   const filteredTransactions = useMemo(() => {
     if (!selectedMonth) return transactions;
     return transactions.filter((tx) => getMonthKey(tx.transactionDate) === selectedMonth);
   }, [transactions, selectedMonth]);
 
-  // Use pre-computed stats from monthlySummary, or calculate from transactions as fallback
   const stats = useMemo(() => {
-    // If we have a monthly summary, use pre-computed values
-    if (currentMonthlySummary) {
-      const { totalExpenses, totalIncome, netFlow, categoryBreakdown } = currentMonthlySummary;
-
-      // Type for category breakdown entries
-      type CategoryBreakdownEntry = { amount: number; count: number; type: "expense" | "income" };
-
-      // Convert category breakdown to the format expected by components
-      const categories = Object.entries(categoryBreakdown as Record<string, CategoryBreakdownEntry>)
-        .filter(([, data]) => data.type === "expense" && data.amount > 0)
-        .map(([categoryId, data]) => ({
-          categoryId,
-          amount: data.amount,
-          count: data.count,
-          percentage: totalExpenses > 0 ? (data.amount / totalExpenses) * 100 : 0,
-        }));
-
-      return { totalExpenses, totalIncome, netFlow, categories };
-    }
-
-    // Fallback: Calculate from transactions
     const totalExpenses = filteredTransactions.reduce(
       (sum, tx) => sum + tx.withdrawalAmount,
       0
@@ -122,11 +75,7 @@ export function Dashboard({
     );
     const netFlow = totalIncome - totalExpenses;
 
-    // Group by category
-    const categoryMap = new Map<
-      string,
-      { amount: number; count: number }
-    >();
+    const categoryMap = new Map<string, { amount: number; count: number }>();
 
     filteredTransactions.forEach((tx) => {
       if (tx.withdrawalAmount > 0) {
@@ -148,8 +97,12 @@ export function Dashboard({
       }))
       .filter((c) => c.amount > 0);
 
-    return { totalExpenses, totalIncome, netFlow, categories };
-  }, [currentMonthlySummary, filteredTransactions]);
+    const ccCashbackTotal = filteredTransactions
+      .filter((tx) => tx.statementType === "credit")
+      .reduce((sum, tx) => sum + (tx.rewardPoints || 0), 0);
+
+    return { totalExpenses, totalIncome, netFlow, categories, ccCashbackTotal };
+  }, [filteredTransactions]);
 
   // Calculate daily data for stream chart (using filtered transactions)
   const dailyData = useMemo(() => {
@@ -214,15 +167,15 @@ export function Dashboard({
       <div className="dashboard-header">
         <h1>Financial Overview</h1>
         <p className="dashboard-period">
-          {currentMonthlySummary?.transactionCount ?? filteredTransactions.length} transactions
+          {filteredTransactions.length} transactions
           {selectedMonth && ` in ${formatMonthLabel(selectedMonth)}`}
         </p>
       </div>
 
       {/* Month Selector */}
-      {monthsToUse.length > 0 && (
+      {availableMonths.length > 0 && (
         <MonthSelector
-          availableMonths={monthsToUse}
+          availableMonths={availableMonths}
           selectedMonth={selectedMonth}
           onMonthChange={onMonthChange}
         />
@@ -305,6 +258,31 @@ export function Dashboard({
               {stats.netFlow >= 0 ? "+" : ""}
               {formatAmount(stats.netFlow)}
             </span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="summary-card cashback"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="card-icon">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 2v20" />
+              <path d="M17 6H9a3 3 0 0 0 0 6h4a3 3 0 1 1 0 6H7" />
+            </svg>
+          </div>
+          <div className="card-content">
+            <span className="card-label">Cashback from CC</span>
+            <span className="card-amount">{formatAmount(stats.ccCashbackTotal)}</span>
           </div>
         </motion.div>
       </div>

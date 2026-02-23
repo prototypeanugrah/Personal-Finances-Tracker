@@ -103,6 +103,11 @@
   color: var(--expense);
 }
 
+.summary-card.cashback .card-icon {
+  background: rgba(94, 114, 228, 0.18);
+  color: #5e72e4;
+}
+
 .card-content {
   flex: 1;
 }
@@ -139,6 +144,10 @@
 
 .summary-card.negative .card-amount {
   color: var(--expense);
+}
+
+.summary-card.cashback .card-amount {
+  color: #5e72e4;
 }
 
 /* Dashboard Grid */

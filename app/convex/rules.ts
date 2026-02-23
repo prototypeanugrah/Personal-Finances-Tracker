@@ -11,122 +11,139 @@ export const seed = mutation({
     }
 
     const defaultRules = [
-      // Food & Dining
+      // Income (deposits)
+      {
+        priority: 1,
+        categoryId: "salary",
+        type: "deposit",
+        pattern: "SALARY|PAYROLL|PAY CREDIT|SAL CREDIT|COMPANY CREDIT",
+        field: "remarks",
+        isSystem: true,
+      },
+      {
+        priority: 2,
+        categoryId: "refunds",
+        type: "deposit",
+        pattern: "REFUND|REVERSAL|CASHBACK|REWARD|REIMBURSEMENT|FAILED TXN",
+        field: "remarks",
+        isSystem: true,
+      },
+
+      // Food
       {
         priority: 10,
-        categoryId: "food",
+        categoryId: "restaurants",
         type: "keyword",
-        pattern: "MCDONALDS|MCDONALD|KFC|BURGER KING|DOMINOS|PIZZA HUT|SUBWAY",
+        pattern:
+          "ZOMATO|SWIGGY|EATSURE|FAASOS|BOX8|BURGER KING|KFC|MCDONALDS|DOMINOS|PIZZA HUT|SUBWAY",
         field: "remarks",
         isSystem: true,
       },
       {
         priority: 11,
-        categoryId: "food",
+        categoryId: "groceries",
         type: "keyword",
-        pattern: "BIKANERVALA|HALDIRAM|SWEETS|RESTAURANT|CAFE|DHABA|FOOD",
+        pattern:
+          "BIGBASKET|BLINKIT|ZEPTO|INSTAMART|GROCERY|SUPERMARKET|DMART|RELIANCE FRESH|MORE|SPENCERS|NATURES BASKET",
         field: "remarks",
         isSystem: true,
       },
       {
         priority: 12,
-        categoryId: "food",
+        categoryId: "cafes",
         type: "keyword",
-        pattern: "ZOMATO|SWIGGY|EATSURE|DUNZO",
+        pattern:
+          "STARBUCKS|CCD|CAFE COFFEE DAY|COSTA|BARISTA|CHAAYOS|BLUE TOKAI|THIRD WAVE|COFFEE",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 13,
-        categoryId: "food",
+        priority: 20,
+        categoryId: "restaurants",
         type: "keyword",
-        pattern: "BIGBASKET|BLINKIT|ZEPTO|INSTAMART|GROCERY|SUPERMARKET|DMART",
-        field: "remarks",
-        isSystem: true,
-      },
-      {
-        priority: 14,
-        categoryId: "food",
-        type: "keyword",
-        pattern: "STARBUCKS|CCD|COSTA|BARISTA|TEA|CHAAYOS",
+        pattern: "RESTAURANT|EATERY|DHABA|BISTRO",
         field: "remarks",
         isSystem: true,
       },
 
       // Housing
       {
-        priority: 20,
-        categoryId: "housing",
+        priority: 30,
+        categoryId: "rent",
         type: "keyword",
-        pattern: "NOBROKER|RENT|HOUSING|NESTAWAY|SQUARE YARDS",
+        pattern:
+          "RENT|HOUSE RENT|NOBROKER|NESTAWAY|HOUSING|APARTMENT|LANDLORD|PROPERTY MANAGEMENT",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 21,
-        categoryId: "housing",
+        priority: 31,
+        categoryId: "utilities",
         type: "keyword",
-        pattern: "ELECTRICITY|BESCOM|POWER|WATER|GAS|UTILITY",
+        pattern:
+          "ELECTRICITY|POWER BILL|WATER BILL|GAS BILL|UTILITY|BESCOM|BROADBAND|AIRTEL FIBER|JIO FIBER|ACT FIBERNET|DTH",
         field: "remarks",
         isSystem: true,
       },
 
       // Transportation
       {
-        priority: 30,
-        categoryId: "transport",
+        priority: 40,
+        categoryId: "fuel",
         type: "keyword",
-        pattern: "OLA|UBER|RAPIDO|NAMMA YATRI|PORTER|MERU|TAXI|CAB",
+        pattern: "PETROL|DIESEL|FUEL|HPCL|INDIAN OIL|BHARAT PETROLEUM|SHELL",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 31,
+        priority: 41,
         categoryId: "transport",
         type: "keyword",
-        pattern: "PETROL|DIESEL|FUEL|HP PUMP|INDIAN OIL|BHARAT PETROLEUM",
-        field: "remarks",
-        isSystem: true,
-      },
-      {
-        priority: 32,
-        categoryId: "transport",
-        type: "keyword",
-        pattern: "METRO|RAILWAY|IRCTC|BUS|KSRTC|BMTC",
+        pattern: "METRO|RAILWAY|IRCTC|BUS|KSRTC|BMTC|REDBUS|AIRINDIA|OLA|UBER|RAPIDO|NAMMA YATRI|TAXI|CAB|AUTO RIDE|MERU|PORTER",
         field: "remarks",
         isSystem: true,
       },
 
       // Shopping
       {
-        priority: 40,
-        categoryId: "shopping",
+        priority: 50,
+        categoryId: "clothing",
         type: "keyword",
-        pattern: "AMAZON|FLIPKART|MYNTRA|AJIO|NYKAA|MEESHO",
+        pattern:
+          "MYNTRA|AJIO|H&M|HM|ZARA|WESTSIDE|PANTALOONS|MAX FASHION|SHOPPERS STOP",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 41,
+        priority: 51,
+        categoryId: "electronics",
+        type: "keyword",
+        pattern: "CROMA|RELIANCE DIGITAL|VIJAY SALES|APPLE|SAMSUNG|MI STORE|ELECTRONICS",
+        field: "remarks",
+        isSystem: true,
+      },
+      {
+        priority: 52,
         categoryId: "shopping",
         type: "keyword",
-        pattern: "CROMA|RELIANCE DIGITAL|VIJAY SALES|ELECTRONICS",
+        pattern: "AMAZON|FLIPKART|NYKAA|MEESHO|SHOPPING",
         field: "remarks",
         isSystem: true,
       },
 
       // Entertainment
       {
-        priority: 50,
-        categoryId: "entertainment",
+        priority: 60,
+        categoryId: "streaming",
         type: "keyword",
-        pattern: "NETFLIX|PRIME VIDEO|HOTSTAR|SPOTIFY|YOUTUBE|APPLE MUSIC",
+        pattern:
+          "NETFLIX|PRIME VIDEO|HOTSTAR|DISNEY|SPOTIFY|YOUTUBE|APPLE MUSIC|JIO CINEMA|SONY LIV|ZEE5",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 51,
-        categoryId: "entertainment",
+        priority: 61,
+        categoryId: "movies",
         type: "keyword",
         pattern: "PVR|INOX|CINEPOLIS|BOOKMYSHOW|MOVIE|CINEMA",
         field: "remarks",
@@ -135,38 +152,45 @@ export const seed = mutation({
 
       // Health
       {
-        priority: 60,
-        categoryId: "health",
+        priority: 70,
+        categoryId: "medical",
         type: "keyword",
-        pattern: "APOLLO|1MG|PHARMEASY|NETMEDS|HOSPITAL|CLINIC|MEDICAL|PHARMACY",
+        pattern:
+          "APOLLO|1MG|PHARMEASY|NETMEDS|HOSPITAL|CLINIC|MEDICAL|PHARMACY|PRACTO|LABS",
         field: "remarks",
         isSystem: true,
       },
       {
-        priority: 61,
-        categoryId: "health",
+        priority: 71,
+        categoryId: "fitness",
         type: "keyword",
-        pattern: "CULT|GYMFIT|FITNESS|GYM|YOGA",
-        field: "remarks",
-        isSystem: true,
-      },
-
-      // Income indicators (for deposits)
-      {
-        priority: 5,
-        categoryId: "income",
-        type: "deposit",
-        pattern: "SALARY|CREDIT|REFUND|CASHBACK|REWARD",
+        pattern: "CULT|FITNESS|GYM|YOGA|FITPASS|HEALTH CLUB",
         field: "remarks",
         isSystem: true,
       },
 
       // Transfers
       {
-        priority: 70,
+        priority: 80,
+        categoryId: "family",
+        type: "keyword",
+        pattern: "FAMILY|MOTHER|FATHER|MOM|DAD|SISTER|BROTHER|HOME TRANSFER",
+        field: "remarks",
+        isSystem: true,
+      },
+      {
+        priority: 81,
+        categoryId: "friends",
+        type: "keyword",
+        pattern: "FRIEND|SETTLEMENT|SPLITWISE|PAYBACK",
+        field: "remarks",
+        isSystem: true,
+      },
+      {
+        priority: 90,
         categoryId: "transfers",
         type: "keyword",
-        pattern: "TRANSFER|SELF|SAVINGS",
+        pattern: "TRANSFER|SELF|SAVINGS|IMPS|NEFT|ATM|CASH WITHDRAWAL|CHEQUE|CHQ",
         field: "remarks",
         isSystem: true,
       },
