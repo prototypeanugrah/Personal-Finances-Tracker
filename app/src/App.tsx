@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Dashboard } from "./components/Dashboard/Dashboard";
 import { FileDropZone } from "./components/FileManager/FileDropZone";
 import { StatementList } from "./components/FileManager/StatementList";
 import { TransactionTable } from "./components/Transactions/TransactionTable";
+import { getMonthKey } from "./components/Dashboard/MonthSelector";
 import type { ParsedStatement } from "./lib/parser/xlsParser";
 import type { CategorizedTransaction } from "./lib/categorizer/categoryEngine";
 import "./styles/globals.css";
@@ -15,6 +16,8 @@ type View = "dashboard" | "transactions" | "import";
 function App() {
   const [view, setView] = useState<View>("import");
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [drilldownCategory, setDrilldownCategory] = useState<string | null>(null);
+  const [drilldownMonth, setDrilldownMonth] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Convex queries
@@ -127,6 +130,13 @@ function App() {
     statementId: tx.statementId.toString(),
   }));
 
+  const transactionsForTable = useMemo(() => {
+    if (!drilldownMonth) return transformedTransactions;
+    return transformedTransactions.filter(
+      (tx) => getMonthKey(tx.transactionDate) === drilldownMonth
+    );
+  }, [transformedTransactions, drilldownMonth]);
+
   // Transform statements for StatementList
   const transformedStatements = statements.map((s) => ({
     ...s,
@@ -166,7 +176,11 @@ function App() {
 
           <button
             className={`nav-link ${view === "transactions" ? "active" : ""}`}
-            onClick={() => setView("transactions")}
+            onClick={() => {
+              setDrilldownCategory(null);
+              setDrilldownMonth(null);
+              setView("transactions");
+            }}
             disabled={transactions.length === 0}
           >
             <svg
@@ -221,7 +235,9 @@ function App() {
             transactions={transformedTransactions}
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
-            onCategoryClick={() => {
+            onCategoryClick={(categoryId) => {
+              setDrilldownCategory(categoryId);
+              setDrilldownMonth(selectedMonth);
               setView("transactions");
             }}
           />
@@ -231,7 +247,8 @@ function App() {
           <div className="transactions-view">
             <h1>Transactions</h1>
             <TransactionTable
-              transactions={transformedTransactions}
+              transactions={transactionsForTable}
+              initialCategory={drilldownCategory}
               onCategoryChange={handleCategoryChange}
             />
           </div>

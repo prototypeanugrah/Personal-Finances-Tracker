@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCategoryById } from "../../lib/categorizer/defaultRules";
 import "./TransactionTable.css";
@@ -20,6 +20,7 @@ interface Transaction {
 
 interface TransactionTableProps {
   transactions: Transaction[];
+  initialCategory?: string | null;
   onCategoryChange?: (id: string, categoryId: string) => void;
 }
 
@@ -28,12 +29,17 @@ type SortOrder = "asc" | "desc";
 
 export function TransactionTable({
   transactions,
+  initialCategory = null,
   onCategoryChange: _onCategoryChange,
 }: TransactionTableProps) {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string | null>(initialCategory);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    setFilterCategory(initialCategory);
+  }, [initialCategory]);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-IN", {
