@@ -17,6 +17,8 @@ export const batchInsert = mutation({
         categoryId: v.string(),
         merchantName: v.optional(v.string()),
         paymentMethod: v.string(),
+        statementType: v.union(v.literal("debit"), v.literal("credit")),
+        rewardPoints: v.optional(v.number()),
       })
     ),
   },
@@ -94,6 +96,41 @@ export const updateCategory = mutation({
     await ctx.db.patch(args.id, {
       userCategoryOverride: args.categoryId,
     });
+  },
+});
+
+export const batchUpdateCategoryIds = mutation({
+  args: {
+    updates: v.array(
+      v.object({
+        id: v.id("transactions"),
+        categoryId: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    let updated = 0;
+    let skipped = 0;
+
+    for (const update of args.updates) {
+      const transaction = await ctx.db.get(update.id);
+      if (!transaction) {
+        skipped += 1;
+        continue;
+      }
+
+      if (transaction.categoryId === update.categoryId) {
+        skipped += 1;
+        continue;
+      }
+
+      await ctx.db.patch(update.id, {
+        categoryId: update.categoryId,
+      });
+      updated += 1;
+    }
+
+    return { updated, skipped };
   },
 });
 

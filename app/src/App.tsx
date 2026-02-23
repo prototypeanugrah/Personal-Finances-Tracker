@@ -7,11 +7,65 @@ import { StatementList } from "./components/FileManager/StatementList";
 import { TransactionTable } from "./components/Transactions/TransactionTable";
 import { getMonthKey } from "./components/Dashboard/MonthSelector";
 import type { ParsedStatement } from "./lib/parser/xlsParser";
-import type { CategorizedTransaction } from "./lib/categorizer/categoryEngine";
+import { processTransactions } from "./lib/categorizer/categoryEngine";
+import { defaultRules } from "./lib/categorizer/defaultRules";
+import type {
+  CategorizedTransaction,
+  HistoricalCategorizedTransaction,
+} from "./lib/categorizer/categoryEngine";
 import "./styles/globals.css";
 import "./App.css";
 
 type View = "dashboard" | "transactions" | "import";
+
+type ImportStatementPayload = {
+  statement: Record<string, unknown>;
+  transactions: Record<string, unknown>[];
+};
+
+function getConvexValidationIssue(error: unknown): {
+  field: string;
+  path: string;
+} | null {
+  if (!(error instanceof Error)) return null;
+  if (!error.message.includes("ArgumentValidationError")) return null;
+
+  const fieldMatch = error.message.match(/extra field `([^`]+)`/i);
+  const pathMatch = error.message.match(/Path:\s*([^\n]+)/i);
+  const field = fieldMatch?.[1];
+  const path = pathMatch?.[1]?.trim();
+  if (!field || !path) return null;
+
+  return { field, path };
+}
+
+function removeRejectedField(
+  payload: ImportStatementPayload,
+  field: string,
+  path: string
+): ImportStatementPayload | null {
+  const next: ImportStatementPayload = {
+    statement: { ...payload.statement },
+    transactions: payload.transactions.map((tx) => ({ ...tx })),
+  };
+
+  let removed = false;
+  if (path.includes(".statement")) {
+    if (field in next.statement) {
+      delete next.statement[field];
+      removed = true;
+    }
+  } else if (path.includes(".transactions")) {
+    for (const tx of next.transactions) {
+      if (field in tx) {
+        delete tx[field];
+        removed = true;
+      }
+    }
+  }
+
+  return removed ? next : null;
+}
 
 function App() {
   const [view, setView] = useState<View>("import");
@@ -19,16 +73,48 @@ function App() {
   const [drilldownCategory, setDrilldownCategory] = useState<string | null>(null);
   const [drilldownMonth, setDrilldownMonth] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
 
   // Convex queries
-  const statements = useQuery(api.statements.list) ?? [];
-  const transactions = useQuery(api.transactions.list, {}) ?? [];
-  const monthlySummaries = useQuery(api.monthlySummary.listMonths) ?? [];
+  const statementsRaw = useQuery(api.statements.list);
+  const transactionsRaw = useQuery(api.transactions.list, {});
+  const statements = statementsRaw ?? [];
+  const transactions = transactionsRaw ?? [];
 
   // Convex mutations
   const importStatement = useMutation(api.statements.importStatement);
   const removeStatement = useMutation(api.statements.remove);
   const updateCategory = useMutation(api.transactions.updateCategory);
+  const batchUpdateCategoryIds = useMutation(api.transactions.batchUpdateCategoryIds);
+
+  const importStatementWithCompatibility = useCallback(
+    async (initialPayload: ImportStatementPayload) => {
+      let payload = initialPayload;
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          return await importStatement(payload as any);
+        } catch (error) {
+          const issue = getConvexValidationIssue(error);
+          if (!issue) {
+            throw error;
+          }
+
+          const nextPayload = removeRejectedField(payload, issue.field, issue.path);
+          if (!nextPayload) {
+            throw error;
+          }
+
+          payload = nextPayload;
+        }
+      }
+
+      throw new Error(
+        "Import failed due to backend schema mismatch. Please run `npx convex dev` and retry."
+      );
+    },
+    [importStatement]
+  );
 
   // Auto-navigate to dashboard if we have data
   useEffect(() => {
@@ -36,13 +122,6 @@ function App() {
       setView("dashboard");
     }
   }, [transactions.length]);
-
-  // Auto-select the most recent month when summaries load
-  useEffect(() => {
-    if (monthlySummaries.length > 0 && !selectedMonth) {
-      setSelectedMonth(monthlySummaries[0].monthKey);
-    }
-  }, [monthlySummaries, selectedMonth]);
 
   const handleStatementParsed = useCallback(
     async (statement: ParsedStatement, categorizedTransactions: CategorizedTransaction[]) => {
@@ -55,13 +134,19 @@ function App() {
 
         // Prepare statement data
         const statementData = {
-          filename: `${monthName} Statement`,
+          filename: `${monthName} ${statement.statementType === "credit" ? "Credit" : "Debit"} Statement`,
+          statementType: statement.statementType,
           accountNumber: statement.accountNumber,
           accountHolder: statement.accountHolder,
+          openingBalance: statement.openingBalance,
+          closingBalance: statement.closingBalance,
+          currency: statement.currency,
           dateFrom: statement.dateFrom.getTime(),
           dateTo: statement.dateTo.getTime(),
           transactionCount: categorizedTransactions.length,
           fileHash: statement.fileHash,
+          cashbackEarned: statement.cashbackEarned,
+          cashbackTransferred: statement.cashbackTransferred,
         };
 
         // Prepare transaction data
@@ -77,10 +162,11 @@ function App() {
           categoryId: tx.categoryId,
           merchantName: tx.merchantName || undefined,
           paymentMethod: tx.paymentMethod,
+          rewardPoints: tx.rewardPoints,
         }));
 
         // Import using the combined mutation
-        const result = await importStatement({
+        const result = await importStatementWithCompatibility({
           statement: statementData,
           transactions: transactionData,
         });
@@ -98,12 +184,16 @@ function App() {
         setView("dashboard");
       } catch (error) {
         console.error("Failed to import statement:", error);
-        alert("Failed to import statement. Please try again.");
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to import statement. Please try again.";
+        alert(message);
       } finally {
         setIsLoading(false);
       }
     },
-    [importStatement]
+    [importStatementWithCompatibility]
   );
 
   const handleDeleteStatement = useCallback(async (id: string) => {
@@ -122,6 +212,109 @@ function App() {
       console.error("Failed to update category:", error);
     }
   }, [updateCategory]);
+
+  const handleRecategorizeAll = useCallback(async () => {
+    if (transactions.length === 0) return;
+
+    const confirmed = window.confirm(
+      "Re-categorize all existing transactions with smart tagging? Manual category overrides will be preserved."
+    );
+    if (!confirmed) return;
+
+    setIsRecategorizing(true);
+
+    try {
+      const trainingSet: HistoricalCategorizedTransaction[] = transactions
+        .filter((tx) => Boolean(tx.userCategoryOverride))
+        .map((tx) => ({
+          remarks: tx.remarks,
+          merchantName: tx.merchantName,
+          categoryId: tx.categoryId,
+          userCategoryOverride: tx.userCategoryOverride,
+          withdrawalAmount: tx.withdrawalAmount,
+          depositAmount: tx.depositAmount,
+        }));
+
+      const statementGroups = new Map<string, (typeof transactions)[number][]>();
+      for (const tx of transactions) {
+        const statementKey = tx.statementId.toString();
+        const group = statementGroups.get(statementKey);
+        if (group) {
+          group.push(tx);
+        } else {
+          statementGroups.set(statementKey, [tx]);
+        }
+      }
+
+      const updates: { id: any; categoryId: string }[] = [];
+
+      for (const group of statementGroups.values()) {
+        const ordered = [...group].sort(
+          (a, b) => a.transactionDate - b.transactionDate || a.serialNo - b.serialNo
+        );
+
+        const inferredStatementType: "debit" | "credit" = ordered.some(
+          (tx) => tx.statementType === "credit" || (tx.rewardPoints || 0) > 0
+        )
+          ? "credit"
+          : "debit";
+
+        const recategorized = processTransactions(
+          ordered.map((tx) => ({
+            serialNo: tx.serialNo,
+            valueDate: new Date(tx.valueDate),
+            transactionDate: new Date(tx.transactionDate),
+            chequeNumber: tx.chequeNumber,
+            remarks: tx.remarks,
+            withdrawalAmount: tx.withdrawalAmount,
+            depositAmount: tx.depositAmount,
+            balance: tx.balance,
+            rewardPoints: tx.rewardPoints,
+          })),
+          defaultRules,
+          inferredStatementType,
+          { historicalTransactions: trainingSet }
+        );
+
+        for (let index = 0; index < ordered.length; index += 1) {
+          const original = ordered[index];
+          const nextCategoryId = recategorized[index]?.categoryId;
+
+          if (!nextCategoryId) continue;
+          if (original.userCategoryOverride) continue;
+          if (nextCategoryId === original.categoryId) continue;
+
+          updates.push({
+            id: original._id,
+            categoryId: nextCategoryId,
+          });
+        }
+      }
+
+      let updatedCount = 0;
+      const batchSize = 200;
+      for (let start = 0; start < updates.length; start += batchSize) {
+        const chunk = updates.slice(start, start + batchSize);
+        const result = await batchUpdateCategoryIds({ updates: chunk });
+        updatedCount += result.updated;
+      }
+
+      alert(
+        updates.length === 0
+          ? "Re-categorization complete. No changes were needed."
+          : `Re-categorization complete. Updated ${updatedCount} transactions.`
+      );
+    } catch (error) {
+      console.error("Failed to re-categorize transactions:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to re-categorize transactions. Please try again.";
+      alert(message);
+    } finally {
+      setIsRecategorizing(false);
+    }
+  }, [batchUpdateCategoryIds, transactions]);
 
   // Transform transactions to include _id as string for components
   const transformedTransactions = transactions.map((tx) => ({
@@ -245,7 +438,16 @@ function App() {
 
         {view === "transactions" && (
           <div className="transactions-view">
-            <h1>Transactions</h1>
+            <div className="transactions-view-header">
+              <h1>Transactions</h1>
+              <button
+                className="btn-secondary transactions-recategorize-btn"
+                onClick={handleRecategorizeAll}
+                disabled={isRecategorizing || transactions.length === 0}
+              >
+                {isRecategorizing ? "Re-categorizing..." : "Smart Re-categorize All"}
+              </button>
+            </div>
             <TransactionTable
               transactions={transactionsForTable}
               initialCategory={drilldownCategory}
@@ -265,6 +467,7 @@ function App() {
 
             <FileDropZone
               onStatementParsed={handleStatementParsed}
+              historicalTransactions={transactions}
               isLoading={isLoading}
             />
 

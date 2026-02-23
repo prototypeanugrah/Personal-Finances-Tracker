@@ -1,169 +1,158 @@
 import type { CategorizationRule } from "./categoryEngine";
 
 /**
- * Default categorization rules for Indian transactions
+ * Default categorization rules for Indian transactions.
+ * Rules are intentionally subcategory-first so we can use the full taxonomy.
  * These are used when Convex rules are not yet loaded
  */
 export const defaultRules: CategorizationRule[] = [
-  // Food & Dining - Fast Food
+  // Income (deposits)
+  {
+    priority: 1,
+    categoryId: "salary",
+    type: "deposit",
+    pattern: "SALARY|PAYROLL|PAY CREDIT|SAL CREDIT|COMPANY CREDIT",
+    field: "remarks",
+  },
+  {
+    priority: 2,
+    categoryId: "refunds",
+    type: "deposit",
+    pattern: "REFUND|REVERSAL|CASHBACK|REWARD|REIMBURSEMENT|FAILED TXN",
+    field: "remarks",
+  },
+
+  // Food
   {
     priority: 10,
     categoryId: "food",
     type: "keyword",
-    pattern: "MCDONALDS|MCDONALD|KFC|BURGER KING|DOMINOS|PIZZA HUT|SUBWAY",
+    pattern:
+      "ZOMATO|SWIGGY|EATSURE|FAASOS|BOX8|BURGER KING|KFC|MCDONALDS|DOMINOS|PIZZA HUT|SUBWAY|RESTAURANT|EATERY|DHABA|BISTRO|BIKANERVAL|Swiggy",
     field: "remarks",
   },
-
-  // Food & Dining - Indian Restaurants
   {
     priority: 11,
-    categoryId: "food",
+    categoryId: "groceries",
     type: "keyword",
-    pattern: "BIKANERVALA|HALDIRAM|SWEETS|RESTAURANT|CAFE|DHABA|FOOD",
+    pattern:
+      "BIGBASKET|BLINKIT|ZEPTO|INSTAMART|GROCERY|SUPERMARKET|DMART|RELIANCE FRESH|MORE|SPENCERS|NATURES BASKET",
     field: "remarks",
   },
-
-  // Food & Dining - Delivery Apps
   {
     priority: 12,
-    categoryId: "food",
+    categoryId: "cafes",
     type: "keyword",
-    pattern: "ZOMATO|SWIGGY|EATSURE|DUNZO|BREAD BASK",
+    pattern:
+      "STARBUCKS|CCD|CAFE COFFEE DAY|COSTA|BARISTA|CHAAYOS|BLUE TOKAI|THIRD WAVE|COFFEE",
     field: "remarks",
   },
 
-  // Food & Dining - Groceries
-  {
-    priority: 13,
-    categoryId: "food",
-    type: "keyword",
-    pattern: "BIGBASKET|BLINKIT|ZEPTO|INSTAMART|GROCERY|SUPERMARKET|DMART|AIBA BAZAA",
-    field: "remarks",
-  },
-
-  // Food & Dining - Cafes & Beverages
-  {
-    priority: 14,
-    categoryId: "food",
-    type: "keyword",
-    pattern: "STARBUCKS|CCD|COSTA|BARISTA|TEA|CHAAYOS|KEVENTERS|TEA FOO",
-    field: "remarks",
-  },
-
-  // Housing - Rent & Property
-  {
-    priority: 20,
-    categoryId: "housing",
-    type: "keyword",
-    pattern: "NOBROKER|RENT|HOUSING|NESTAWAY|SQUARE YARDS|SQUARE YAR|FURLENCO",
-    field: "remarks",
-  },
-
-  // Housing - Utilities
-  {
-    priority: 21,
-    categoryId: "housing",
-    type: "keyword",
-    pattern: "ELECTRICITY|BESCOM|POWER|WATER|GAS|UTILITY",
-    field: "remarks",
-  },
-
-  // Transportation - Cabs & Rides
+  // Housing
   {
     priority: 30,
-    categoryId: "transport",
+    categoryId: "rent",
     type: "keyword",
-    pattern: "OLA|UBER|RAPIDO|NAMMA YATRI|PORTER|MERU|TAXI|CAB",
+    pattern:
+      "RENT|HOUSE RENT|NOBROKER|NESTAWAY|HOUSING|APARTMENT|LANDLORD|PROPERTY MANAGEMENT",
     field: "remarks",
   },
-
-  // Transportation - Fuel
   {
     priority: 31,
-    categoryId: "transport",
+    categoryId: "utilities",
     type: "keyword",
-    pattern: "PETROL|DIESEL|FUEL|HP PUMP|INDIAN OIL|BHARAT PETROLEUM",
+    pattern:
+      "ELECTRICITY|POWER BILL|WATER BILL|GAS BILL|UTILITY|BESCOM|BROADBAND|AIRTEL FIBER|JIO FIBER|ACT FIBERNET|DTH|AIRTEL",
     field: "remarks",
   },
 
-  // Transportation - Public Transport
-  {
-    priority: 32,
-    categoryId: "transport",
-    type: "keyword",
-    pattern: "METRO|RAILWAY|IRCTC|BUS|KSRTC|BMTC",
-    field: "remarks",
-  },
-
-  // Shopping - Online
+  // Transportation
   {
     priority: 40,
-    categoryId: "shopping",
+    categoryId: "fuel",
     type: "keyword",
-    pattern: "AMAZON|FLIPKART|MYNTRA|AJIO|NYKAA|MEESHO",
+    pattern: "PETROL|DIESEL|FUEL|HPCL|INDIAN OIL|BHARAT PETROLEUM|SHELL",
     field: "remarks",
   },
-
-  // Shopping - Electronics
   {
     priority: 41,
-    categoryId: "shopping",
+    categoryId: "transport",
     type: "keyword",
-    pattern: "CROMA|RELIANCE DIGITAL|VIJAY SALES|ELECTRONICS",
+    pattern: "METRO|RAILWAY|IRCTC|BUS|KSRTC|BMTC|REDBUS|AIRINDIA|OLA|UBER|RAPIDO|NAMMA YATRI|TAXI|CAB|AUTO RIDE|MERU|PORTER",
     field: "remarks",
   },
 
-  // Entertainment - Streaming
+  // Shopping
   {
     priority: 50,
-    categoryId: "entertainment",
+    categoryId: "electronics",
     type: "keyword",
-    pattern: "NETFLIX|PRIME VIDEO|HOTSTAR|SPOTIFY|YOUTUBE|APPLE MUSIC",
+    pattern:
+      "CROMA|RELIANCE DIGITAL|VIJAY SALES|APPLE|SAMSUNG|MI STORE|ELECTRONICS",
+    field: "remarks",
+  },
+  {
+    priority: 51,
+    categoryId: "shopping",
+    type: "keyword",
+    pattern: "AMAZON|FLIPKART|NYKAA|MEESHO|SHOPPING|MYNTRA|AJIO|H&M|HM|ZARA|WESTSIDE|PANTALOONS|MAX FASHION|SHOPPERS STOP",
     field: "remarks",
   },
 
-  // Entertainment - Movies
+  // Entertainment
   {
-    priority: 51,
-    categoryId: "entertainment",
+    priority: 60,
+    categoryId: "streaming",
+    type: "keyword",
+    pattern:
+      "NETFLIX|PRIME VIDEO|HOTSTAR|DISNEY|SPOTIFY|YOUTUBE|APPLE MUSIC|JIO CINEMA|SONY LIV|ZEE5",
+    field: "remarks",
+  },
+  {
+    priority: 61,
+    categoryId: "movies",
     type: "keyword",
     pattern: "PVR|INOX|CINEPOLIS|BOOKMYSHOW|MOVIE|CINEMA",
     field: "remarks",
   },
 
-  // Health - Medical
-  {
-    priority: 60,
-    categoryId: "health",
-    type: "keyword",
-    pattern: "APOLLO|1MG|PHARMEASY|NETMEDS|HOSPITAL|CLINIC|MEDICAL|PHARMACY",
-    field: "remarks",
-  },
-
-  // Health - Fitness
-  {
-    priority: 61,
-    categoryId: "health",
-    type: "keyword",
-    pattern: "CULT|GYMFIT|FITNESS|GYM|YOGA",
-    field: "remarks",
-  },
-
-  // Income - Deposits (should match deposits with specific keywords)
-  {
-    priority: 5,
-    categoryId: "income",
-    type: "deposit",
-    pattern: "SALARY|CREDIT|REFUND|CASHBACK|REWARD|FUNDS TRANSFER|FAMILY",
-    field: "remarks",
-  },
-
-  // Transfers - Self & Family
+  // Health
   {
     priority: 70,
+    categoryId: "medical",
+    type: "keyword",
+    pattern:
+      "APOLLO|1MG|PHARMEASY|NETMEDS|HOSPITAL|CLINIC|MEDICAL|PHARMACY|PRACTO|LABS",
+    field: "remarks",
+  },
+  {
+    priority: 71,
+    categoryId: "fitness",
+    type: "keyword",
+    pattern: "CULT|FITNESS|GYM|YOGA|FITPASS|HEALTH CLUB",
+    field: "remarks",
+  },
+
+  // Transfers
+  {
+    priority: 80,
+    categoryId: "family",
+    type: "keyword",
+    pattern: "FAMILY|MOTHER|FATHER|MOM|DAD|SISTER|BROTHER|HOME TRANSFER",
+    field: "remarks",
+  },
+  {
+    priority: 81,
+    categoryId: "friends",
+    type: "keyword",
+    pattern: "FRIEND|SETTLEMENT|SPLITWISE|PAYBACK",
+    field: "remarks",
+  },
+  {
+    priority: 90,
     categoryId: "transfers",
     type: "keyword",
-    pattern: "TRANSFER|SELF|SAVINGS|FAMILY",
+    pattern: "TRANSFER|SELF|SAVINGS|IMPS|NEFT|ATM|CASH WITHDRAWAL|CHEQUE|CHQ",
     field: "remarks",
   },
 ];
@@ -171,21 +160,53 @@ export const defaultRules: CategorizationRule[] = [
 /**
  * Default category definitions
  */
-export const defaultCategories = [
-  { id: "food", name: "Food & Dining", icon: "🍽️", color: "#FF6B6B" },
+export interface CategoryDefinition {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  parentId?: string;
+}
+
+export const defaultCategories: CategoryDefinition[] = [
+  { id: "food", name: "Restaurants", icon: "🍔", color: "#FF6B6B", parentId: "food" },
+  { id: "groceries", name: "Groceries", icon: "🛒", color: "#FF8E8E", parentId: "food" },
+  { id: "cafes", name: "Cafes", icon: "☕", color: "#FFB3B3", parentId: "food" },
+
   { id: "housing", name: "Housing", icon: "🏠", color: "#4ECDC4" },
+  { id: "rent", name: "Rent", icon: "🔑", color: "#4ECDC4", parentId: "housing" },
+  { id: "utilities", name: "Utilities", icon: "💡", color: "#6EE7DF", parentId: "housing" },
+
   { id: "transport", name: "Transportation", icon: "🚗", color: "#45B7D1" },
+  { id: "fuel", name: "Fuel", icon: "⛽", color: "#67C9E0", parentId: "transport" },
+
   { id: "shopping", name: "Shopping", icon: "🛍️", color: "#96CEB4" },
+  { id: "electronics", name: "Electronics", icon: "📱", color: "#A8D8C5", parentId: "shopping" },
+
   { id: "entertainment", name: "Entertainment", icon: "🎬", color: "#FFEAA7" },
+  { id: "movies", name: "Movies", icon: "🎥", color: "#FFEAA7", parentId: "entertainment" },
+  { id: "streaming", name: "Streaming", icon: "📺", color: "#FFF0B3", parentId: "entertainment" },
+
   { id: "health", name: "Health", icon: "🏥", color: "#DDA0DD" },
+  { id: "medical", name: "Medical", icon: "💊", color: "#DDA0DD", parentId: "health" },
+  { id: "fitness", name: "Fitness", icon: "🏋️", color: "#E8B8E8", parentId: "health" },
+
   { id: "transfers", name: "Transfers", icon: "💸", color: "#B0B0B0" },
+  { id: "family", name: "Family", icon: "👨‍👩‍👧", color: "#B0B0B0", parentId: "transfers" },
+  { id: "friends", name: "Friends", icon: "🤝", color: "#C0C0C0", parentId: "transfers" },
+
   { id: "income", name: "Income", icon: "💰", color: "#2ECC71" },
+  { id: "salary", name: "Salary", icon: "💵", color: "#2ECC71", parentId: "income" },
+  { id: "refunds", name: "Refunds", icon: "↩️", color: "#58D68D", parentId: "income" },
+
   { id: "uncategorized", name: "Uncategorized", icon: "❓", color: "#95A5A6" },
 ];
+
+const categoryById = new Map(defaultCategories.map((category) => [category.id, category]));
 
 /**
  * Get category by ID
  */
 export function getCategoryById(id: string) {
-  return defaultCategories.find((c) => c.id === id) || defaultCategories[defaultCategories.length - 1];
+  return categoryById.get(id) || defaultCategories[defaultCategories.length - 1];
 }

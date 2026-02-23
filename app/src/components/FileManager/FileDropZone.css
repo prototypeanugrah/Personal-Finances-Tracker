@@ -4,6 +4,44 @@
   margin: 0 auto;
 }
 
+.statement-type-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-md) 0;
+}
+
+.statement-action-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.statement-action-btn:hover {
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+
+.statement-action-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.statement-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
 .drop-zone {
   position: relative;
   border: 2px dashed var(--border);

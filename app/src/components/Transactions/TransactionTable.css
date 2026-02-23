@@ -139,7 +139,8 @@
 
 .description-content {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   margin-bottom: 2px;
 }
@@ -149,6 +150,8 @@
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--text);
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 .payment-method {

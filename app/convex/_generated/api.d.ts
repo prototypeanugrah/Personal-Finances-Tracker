@@ -8,8 +8,6 @@
  * @module
  */
 
-import type * as categories from "../categories.js";
-import type * as monthlySummary from "../monthlySummary.js";
 import type * as rules from "../rules.js";
 import type * as statements from "../statements.js";
 import type * as transactions from "../transactions.js";
@@ -21,8 +19,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  categories: typeof categories;
-  monthlySummary: typeof monthlySummary;
   rules: typeof rules;
   statements: typeof statements;
   transactions: typeof transactions;

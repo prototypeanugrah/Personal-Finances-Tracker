@@ -4,12 +4,14 @@ import "./StatementList.css";
 interface Statement {
   _id: string;
   filename: string;
+  statementType?: "debit" | "credit";
   importedAt: number;
   accountNumber: string;
   accountHolder: string;
   dateFrom: number;
   dateTo: number;
   transactionCount: number;
+  cashbackTransferred?: number;
 }
 
 interface StatementListProps {
@@ -66,6 +68,19 @@ export function StatementList({ statements, onDelete }: StatementListProps) {
                 <span className="statement-count">
                   {statement.transactionCount} transactions
                 </span>
+                <span className="statement-divider">•</span>
+                <span className="statement-count">
+                  {statement.statementType === "credit" ? "Credit" : "Debit"}
+                </span>
+                {statement.statementType === "credit" &&
+                  (statement.cashbackTransferred || 0) > 0 && (
+                    <>
+                      <span className="statement-divider">•</span>
+                      <span className="statement-count">
+                        Cashback: {statement.cashbackTransferred}
+                      </span>
+                    </>
+                  )}
               </div>
             </div>
 

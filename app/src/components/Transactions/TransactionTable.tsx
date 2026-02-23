@@ -15,6 +15,8 @@ interface Transaction {
   categoryId: string;
   merchantName?: string;
   paymentMethod: string;
+  statementType?: "debit" | "credit";
+  rewardPoints?: number;
   userCategoryOverride?: string;
 }
 
@@ -103,6 +105,10 @@ export function TransactionTable({
 
     return result;
   }, [transactions, sortField, sortOrder, filterCategory, searchQuery]);
+
+  const getDescriptionLabel = (tx: Transaction) => {
+    return tx.statementType === "credit" ? "Credit" : "UPI";
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -222,6 +228,7 @@ export function TransactionTable({
                 );
                 const isExpense = tx.withdrawalAmount > 0;
                 const amount = isExpense ? tx.withdrawalAmount : tx.depositAmount;
+                const transactionDetails = tx.remarks?.trim() || tx.merchantName || "Unknown";
 
                 return (
                   <motion.tr
@@ -237,11 +244,11 @@ export function TransactionTable({
                     </td>
                     <td className="description-cell">
                       <div className="description-content">
-                        <span className="merchant-name">
-                          {tx.merchantName || "Unknown"}
+                        <span className="merchant-name" title={transactionDetails}>
+                          {transactionDetails}
                         </span>
                         <span className="payment-method badge">
-                          {tx.paymentMethod}
+                          {getDescriptionLabel(tx)}
                         </span>
                       </div>
                     </td>

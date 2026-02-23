@@ -9,15 +9,22 @@ export interface RawTransaction {
   withdrawalAmount: number;
   depositAmount: number;
   balance: number;
+  rewardPoints?: number;
 }
 
 export interface ParsedStatement {
+  statementType: "debit" | "credit";
   accountNumber: string;
   accountHolder: string;
   dateFrom: Date;
   dateTo: Date;
   transactions: RawTransaction[];
   fileHash: string;
+  openingBalance?: number;
+  closingBalance?: number;
+  currency?: string;
+  cashbackEarned?: number;
+  cashbackTransferred?: number;
 }
 
 /**
